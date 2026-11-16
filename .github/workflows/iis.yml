@@ -1,0 +1,44 @@
+name: Aktualizace IIS
+on:
+  schedule:
+    - cron: '0 7 * * 2'
+      timezone: Europe/Prague
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/iis.yml'
+      - 'update_iis.py'
+concurrency:
+  group: iis-publication
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - run: python3 update_iis.py
+      - name: Uložit ověřená data
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          if ! git diff --cached --quiet; then
+            git commit -m 'Aktualizace indexu IIS'
+            git push origin HEAD:main
+          fi
+          mkdir public
+          cp index.html public/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      - id: deploy
+        uses: actions/deploy-pages@v4
